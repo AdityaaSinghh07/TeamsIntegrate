@@ -31,8 +31,7 @@ jobs:
             --instance-ids "i-0f438ea66d8368e21" \
             --document-name "AWS-RunShellScript" \
             --parameters commands=["cd /home/ubuntu && ./deploy.sh"]
-
-   steps:
+            
       - name: Send Teams Notification
         run: |
           curl -H "Content-Type: application/json" \
