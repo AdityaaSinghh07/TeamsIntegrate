@@ -1,0 +1,39 @@
+name: CI-CD Docker SSM Teams
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::585853585762:role/GithubActionOIDC
+          aws-region: us-east-1
+
+      - name: Build Docker Image (CI check)
+        run: docker build -t cicd-app .
+
+      - name: Deploy via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "i-0f438ea66d8368e21" \
+            --document-name "AWS-RunShellScript" \
+            --parameters commands=["cd /home/ubuntu && ./deploy.sh"]
+
+      - name: Send Teams Notification
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"text":"🚀 Docker Deployment Successful via CI/CD + SSM + OIDC"}' \
+          ${{ secrets.TEAMS_WEBHOOK_URL }}
