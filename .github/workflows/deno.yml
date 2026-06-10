@@ -44,7 +44,7 @@ jobs:
             "@type": "MessageCard",
             "@context": "https://schema.org/extensions",
             "themeColor": "00FF00",
-            "summary": "Deployment Successful",
+            "summary": "Deployment Success",
             "sections": [
               {
                 "activityTitle": "✅ Deployment Successful",
@@ -58,19 +58,42 @@ jobs:
                     "value": "${{ github.ref_name }}"
                   },
                   {
+                    "name": "Environment",
+                    "value": "Production"
+                  },
+                  {
                     "name": "Triggered By",
                     "value": "${{ github.actor }}"
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "${{ github.sha }}"
                   }
-                ]
+                ],
+                "markdown": true
+              },
+              {
+                "activityTitle": "Application URL",
+                "text": "${{ vars.CLOUDFRONT_URL }}",
+                "markdown": true
+              },
+              {
+                "activityTitle": "Workflow Run",
+                "text": "[Open Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                "markdown": true
               }
             ]
           }
           EOF
 
-          curl -v \
+          curl -s -o response.txt -w "%{http_code}" \
+            -X POST \
             -H "Content-Type: application/json" \
             -d @payload.json \
             "$TEAMS_WEBHOOK_URL"
+
+          echo "Response:"
+          cat response.txt
 
       - name: Teams Failure Notification
         if: failure()
@@ -96,16 +119,34 @@ jobs:
                     "value": "${{ github.ref_name }}"
                   },
                   {
+                    "name": "Environment",
+                    "value": "Production"
+                  },
+                  {
                     "name": "Triggered By",
                     "value": "${{ github.actor }}"
+                  },
+                  {
+                    "name": "Commit",
+                    "value": "${{ github.sha }}"
                   }
-                ]
+                ],
+                "markdown": true
+              },
+              {
+                "activityTitle": "Workflow Run",
+                "text": "[Open Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})",
+                "markdown": true
               }
             ]
           }
           EOF
 
-          curl -v \
+          curl -s -o response.txt -w "%{http_code}" \
+            -X POST \
             -H "Content-Type: application/json" \
             -d @payload.json \
             "$TEAMS_WEBHOOK_URL"
+
+          echo "Response:"
+          cat response.txt
