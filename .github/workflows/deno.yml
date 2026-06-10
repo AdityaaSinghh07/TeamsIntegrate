@@ -13,14 +13,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    outputs:
-      deployment_status: success
-
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::585853585762:role/GithubActionOIDC
@@ -35,48 +32,80 @@ jobs:
           aws ssm send-command \
             --instance-ids "i-0f438ea66d8368e21" \
             --document-name "AWS-RunShellScript" \
-            --parameters commands='["cd /home/ubuntu && ./deploy.sh"]'
+            --parameters 'commands=["cd /home/ubuntu && ./deploy.sh"]'
 
-  notify-success:
-    needs: deploy
-    if: success()
+      - name: Teams Success Notification
+        if: success()
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          cat > payload.json <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "https://schema.org/extensions",
+            "themeColor": "00FF00",
+            "summary": "Deployment Successful",
+            "sections": [
+              {
+                "activityTitle": "✅ Deployment Successful",
+                "facts": [
+                  {
+                    "name": "Repository",
+                    "value": "${{ github.repository }}"
+                  },
+                  {
+                    "name": "Branch",
+                    "value": "${{ github.ref_name }}"
+                  },
+                  {
+                    "name": "Triggered By",
+                    "value": "${{ github.actor }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
 
-    uses: ./.github/workflows/reusable-teams-notification.yml
+          curl -v \
+            -H "Content-Type: application/json" \
+            -d @payload.json \
+            "$TEAMS_WEBHOOK_URL"
 
-    with:
-      payload: |
-        {
-          "text": "✅ Deployment Successful
+      - name: Teams Failure Notification
+        if: failure()
+        env:
+          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+        run: |
+          cat > payload.json <<EOF
+          {
+            "@type": "MessageCard",
+            "@context": "https://schema.org/extensions",
+            "themeColor": "FF0000",
+            "summary": "Deployment Failed",
+            "sections": [
+              {
+                "activityTitle": "❌ Deployment Failed",
+                "facts": [
+                  {
+                    "name": "Repository",
+                    "value": "${{ github.repository }}"
+                  },
+                  {
+                    "name": "Branch",
+                    "value": "${{ github.ref_name }}"
+                  },
+                  {
+                    "name": "Triggered By",
+                    "value": "${{ github.actor }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
 
-          Repository: ${{ github.repository }}
-          Branch: ${{ github.ref_name }}
-          Triggered By: ${{ github.actor }}
-
-          Workflow:
-          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        }
-
-    secrets:
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
-  notify-failure:
-    needs: deploy
-    if: failure()
-
-    uses: ./.github/workflows/reusable-teams-notification.yml
-
-    with:
-      payload: |
-        {
-          "text": "❌ Deployment Failed
-
-          Repository: ${{ github.repository }}
-          Branch: ${{ github.ref_name }}
-          Triggered By: ${{ github.actor }}
-
-          Workflow:
-          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        }
-
-    secrets:
-      TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          curl -v \
+            -H "Content-Type: application/json" \
+            -d @payload.json \
+            "$TEAMS_WEBHOOK_URL"
