@@ -31,6 +31,15 @@ jobs:
             --instance-ids "i-0f438ea66d8368e21" \
             --document-name "AWS-RunShellScript" \
             --parameters commands=["cd /home/ubuntu && ./deploy.sh"]
+
+      - name: Verify Teams Secret
+        run: |
+         if [ -z "${{ secrets.TEAMS_WEBHOOK_URL }}" ]; then
+         echo "TEAMS_WEBHOOK_URL is empty"
+         exit 1
+         else
+         echo "Webhook URL exists"
+         fi
             
       - name: Send Teams Notification
         env:
